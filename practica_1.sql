@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 23-02-2026 a las 17:02:01
+-- Tiempo de generación: 05-03-2026 a las 17:37:59
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -20,6 +20,151 @@ SET time_zone = "+00:00";
 --
 -- Base de datos: `practica 1`
 --
+
+DELIMITER $$
+--
+-- Procedimientos
+--
+CREATE DEFINER=`root`@`localhost` PROCEDURE `get_libros_prestamo` ()   SELECT l.lib_titulo,
+       s.soc_nombre,
+       s.soc_apellido,
+       p.pres_fechaPrestamo,
+       p.pres_fechaDevolucion
+FROM tbl_prestamo p
+INNER JOIN tbl_socio s
+ON p.soc_codigoNumero = s.soc_numero
+INNER JOIN tbl_libro l
+ON p.lib_copiaISBN = l.lib_isbn$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `get_socios_prestamos` ()   SELECT soc_numero,
+       soc_nombre,
+       soc_apellido,
+       soc_direccion,
+       pres_id,
+       pres_fechaPrestamo,
+       pres_fechaDevolucion
+FROM tbl_socio
+LEFT JOIN tbl_prestamo 
+ON soc_numero = soc_copiaNumero$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_actualizar_socio` (IN `p_numero` INT, IN `p_direccion` VARCHAR(255), IN `p_telefono` VARCHAR(10))   BEGIN
+    UPDATE tbl_socio
+    SET 
+        SOC_DIRECCION = p_direccion,
+        SOC_TELEFONO = p_telefono
+    WHERE SOC_NUMERO = p_numero;
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_buscar_libro_nombre` (IN `p_nombre` VARCHAR(255))   BEGIN
+    SELECT *
+    FROM tbl_libro
+    WHERE LIB_TITULO LIKE CONCAT('%', p_nombre, '%');
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_eliminar_libro` (IN `p_isbn` BIGINT)   BEGIN
+    DECLARE existe INT;
+
+    SELECT COUNT(*) INTO existe
+    FROM tbl_prestamo
+    WHERE LIB_COPIAISBN = p_isbn;
+
+    IF existe = 0 THEN
+        DELETE FROM tbl_libro
+        WHERE LIB_ISBN = p_isbn;
+    ELSE
+        SELECT 'No se puede eliminar, tiene prestamos' AS mensaje;
+    END IF;
+
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_insertar_socio` (IN `p_numero` INT, IN `p_nombre` VARCHAR(45), IN `p_apellido` VARCHAR(45), IN `p_direccion` VARCHAR(255), IN `p_telefono` VARCHAR(10))   BEGIN
+    INSERT INTO tbl_socio
+    VALUES (p_numero, p_nombre, p_apellido, p_direccion, p_telefono);
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_libros_en_prestamo` ()   BEGIN
+    SELECT
+        L.LIB_TITULO,
+        S.SOC_NOMBRE,
+        P.PRES_FECHAPRESTAMO,
+        P.PRES_FECHADEVOLUCION
+    FROM tbl_prestamo P
+    INNER JOIN tbl_libro L 
+        ON P.LIB_COPIAISBN = L.LIB_ISBN
+    INNER JOIN tbl_socio S 
+        ON P.SOC_COPIANUMERO = S.SOC_NUMERO;
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_socios_con_prestamos` ()   BEGIN
+    SELECT 
+        S.SOC_NUMERO,
+        S.SOC_NOMBRE, 
+        P.PRES_ID,
+        P.PRES_FECHAPRESTAMO,
+        P.PRES_FECHADEVOLUCION
+    FROM tbl_socio S
+    LEFT JOIN tbl_prestamo P 
+        ON S.SOC_NUMERO = P.SOC_COPIANUMERO;
+END$$
+
+--
+-- Funciones
+--
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_dias_prestamo` (`p_isbn` BIGINT) RETURNS INT(11) DETERMINISTIC BEGIN
+    DECLARE dias INT;
+
+    SELECT DATEDIFF(
+        IFNULL(PRES_FECHADEVOLUCION, CURDATE()),
+        PRES_FECHAPRESTAMO
+    )
+    INTO dias
+    FROM tbl_prestamo
+    WHERE LIB_COPIAISBN = p_isbn
+    LIMIT 1;
+
+    RETURN dias;
+END$$
+
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_total_socios` () RETURNS INT(11) DETERMINISTIC BEGIN
+    DECLARE total INT;
+
+    SELECT COUNT(*) INTO total
+    FROM tbl_socio;
+
+    RETURN total;
+END$$
+
+DELIMITER ;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `audi_socio`
+--
+
+CREATE TABLE `audi_socio` (
+  `id_audi` int(10) NOT NULL,
+  `socNumero_audi` int(11) DEFAULT NULL,
+  `socNombre_anterior` varchar(45) DEFAULT NULL,
+  `socApellido_anterior` varchar(45) DEFAULT NULL,
+  `socDireccion_anterior` varchar(255) DEFAULT NULL,
+  `socTelefono_anterior` varchar(10) DEFAULT NULL,
+  `socNombre_nuevo` varchar(45) DEFAULT NULL,
+  `socApellido_nuevo` varchar(45) DEFAULT NULL,
+  `socDireccion_nuevo` varchar(255) DEFAULT NULL,
+  `socTelefono_nuevo` varchar(10) DEFAULT NULL,
+  `audi_fechaModificacion` datetime DEFAULT NULL,
+  `audi_usuario` varchar(10) DEFAULT NULL,
+  `audi_accion` varchar(45) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Volcado de datos para la tabla `audi_socio`
+--
+
+INSERT INTO `audi_socio` (`id_audi`, `socNumero_audi`, `socNombre_anterior`, `socApellido_anterior`, `socDireccion_anterior`, `socTelefono_anterior`, `socNombre_nuevo`, `socApellido_nuevo`, `socDireccion_nuevo`, `socTelefono_nuevo`, `audi_fechaModificacion`, `audi_usuario`, `audi_accion`) VALUES
+(1, 1, 'Ana', 'Ruiz', 'Calle Primavera 123, Ciudad Jardín, Barcelona', '9123456780', 'Ana', 'Ruiz', 'Calle Primavera 123, Ciudad Jardín, Barcelona', '600123456', '2026-03-05 07:18:41', 'root@local', 'Actualización'),
+(2, 10, 'Andrea', 'García', 'Calle del Sol 432, La Colina, Zaragoza', '1112345678', 'Andrea', 'García', 'Calle 25 #18-30', '3114567890', '2026-03-05 11:27:06', 'root@local', 'Actualización');
 
 -- --------------------------------------------------------
 
@@ -131,7 +276,7 @@ CREATE TABLE `tbl_socio` (
 --
 
 INSERT INTO `tbl_socio` (`SOC_NUMERO`, `SOC_NOMBRE`, `SOC_APELLIDO`, `SOC_DIRECCION`, `SOC_TELEFONO`) VALUES
-(1, 'Ana', 'Ruiz', 'Calle Primavera 123, Ciudad Jardín, Barcelona', '9123456780'),
+(1, 'Ana', 'Ruiz', 'Calle Primavera 123, Ciudad Jardín, Barcelona', '600123456'),
 (2, 'Andrés Felipe', 'Galindo Luna', 'Avenida del Sol 456, Pueblo Nuevo, Madrid ', '2123456789'),
 (3, 'Juan ', 'González', 'Calle Principal 789, Villa Flores, Valencia', '2012345678'),
 (4, 'Maria', 'Rodriguéz', 'Carrera del Río 321, El Pueblo, Sevilla', '3012345678'),
@@ -140,9 +285,43 @@ INSERT INTO `tbl_socio` (`SOC_NUMERO`, `SOC_NOMBRE`, `SOC_APELLIDO`, `SOC_DIRECC
 (7, 'Carlos', 'Sánchez', 'Calle de la Luna 234, El Prado, Alicante', '1123456781'),
 (8, 'Laura', 'Ramírez', 'Carrera del Mar 567, Playa Azul, Palma de Mallorca ', '1312345678'),
 (9, 'Luis', 'Hernandéz', 'Avenida de la Montaña 890, Monte Verde, Granada', '6101234567'),
-(10, 'Andrea', 'García', 'Calle del Sol 432, La Colina, Zaragoza', '1112345678'),
+(10, 'Andrea', 'García', 'Calle 25 #18-30', '3114567890'),
 (11, 'Alejandro', 'Torres', 'Carrera del Oeste 765, Ciudad Nueva, Murcia', '4951234567'),
-(12, 'Sofia', 'Morales', 'Avenida del Mar 098, Costa Brava, Gijón', '5512345678');
+(12, 'Sofia', 'Morales', 'Avenida del Mar 098, Costa Brava, Gijón', '5512345678'),
+(13, 'Ashley', 'Perdomo', 'Calle 6f sur #8-26 este', '3137744561');
+
+--
+-- Disparadores `tbl_socio`
+--
+DELIMITER $$
+CREATE TRIGGER `socios_before_update` BEFORE UPDATE ON `tbl_socio` FOR EACH ROW INSERT INTO audi_socio(
+    socNumero_audi,
+    socNombre_anterior,
+    socApellido_anterior,
+    socDireccion_anterior,
+    socTelefono_anterior,
+    socNombre_nuevo,
+    socApellido_nuevo,
+    socDireccion_nuevo,
+    socTelefono_nuevo,
+    audi_fechaModificacion,
+    audi_usuario,
+    audi_accion)
+VALUES(
+    new.soc_numero,
+    old.soc_nombre,
+    old.soc_apellido,
+    old.soc_direccion,
+    old.soc_telefono,
+    new.soc_nombre,
+    new.soc_apellido,
+    new.soc_direccion,
+    new.soc_telefono,
+    NOW(),
+    CURRENT_USER(),
+    'Actualización')
+$$
+DELIMITER ;
 
 -- --------------------------------------------------------
 
@@ -182,6 +361,12 @@ INSERT INTO `tbl_tipoautores` (`COPIAISBN`, `COPIA_AUTOR`, `TIPO_AUTOR`) VALUES
 --
 
 --
+-- Indices de la tabla `audi_socio`
+--
+ALTER TABLE `audi_socio`
+  ADD PRIMARY KEY (`id_audi`);
+
+--
 -- Indices de la tabla `tbl_autor`
 --
 ALTER TABLE `tbl_autor`
@@ -213,6 +398,16 @@ ALTER TABLE `tbl_socio`
 ALTER TABLE `tbl_tipoautores`
   ADD KEY `COPIAISBN` (`COPIAISBN`),
   ADD KEY `COPIA_AUTOR` (`COPIA_AUTOR`);
+
+--
+-- AUTO_INCREMENT de las tablas volcadas
+--
+
+--
+-- AUTO_INCREMENT de la tabla `audi_socio`
+--
+ALTER TABLE `audi_socio`
+  MODIFY `id_audi` int(10) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- Restricciones para tablas volcadas
